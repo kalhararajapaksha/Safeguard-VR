@@ -1,65 +1,83 @@
-import Image from "next/image";
+import Link from "next/link";
+import { MODEL } from "@/lib/models";
+import DeviceHint from "@/components/DeviceHint";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="mx-auto min-h-[100dvh] w-full max-w-2xl px-4 py-8 text-white">
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold">Safeguard AR</h1>
+        <p className="mt-1 text-sm text-slate-300">
+          Scan the printed QR with your phone&apos;s native camera &mdash; the
+          URL opens this site and the animated 3D model appears in AR.
+        </p>
+      </header>
+
+      <div className="mb-6">
+        <DeviceHint />
+      </div>
+
+      <article className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+        <h2 className="text-lg font-semibold">{MODEL.name}</h2>
+        <p className="mb-4 text-sm text-slate-300">{MODEL.description}</p>
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Link
+            href="/ar"
+            className="rounded-lg bg-emerald-500 px-4 py-3 text-center text-sm font-semibold text-black hover:bg-emerald-400"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            Open Launcher AR
+          </Link>
+          <Link
+            href="/marker"
+            className="rounded-lg bg-sky-500 px-4 py-3 text-center text-sm font-semibold text-black hover:bg-sky-400"
           >
-            Documentation
-          </a>
+            Open Marker AR
+          </Link>
         </div>
-      </main>
-    </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+          <Link
+            href="/qr?mode=ar"
+            className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-center text-emerald-200 hover:bg-emerald-500/20"
+          >
+            Printable QR &rarr; launcher
+          </Link>
+          <Link
+            href="/qr?mode=marker"
+            className="rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-center text-sky-200 hover:bg-sky-500/20"
+          >
+            Printable QR &rarr; marker
+          </Link>
+        </div>
+      </article>
+
+      <section className="mt-6 space-y-3 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+        <h3 className="text-base font-semibold text-white">How it works</h3>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Open one of the &ldquo;Printable QR&rdquo; pages and print it.</li>
+          <li>
+            On any phone, open the native camera and aim at the QR. Tap the
+            link banner to open this site.
+          </li>
+          <li>
+            <strong>Launcher</strong> &mdash; Android opens Scene Viewer
+            (full AR with animation). iOS shows an animated 3D viewer.
+          </li>
+          <li>
+            <strong>Marker</strong> &mdash; the same printed QR is the
+            anchor: the camera page tracks it and places the animated model
+            on top of it. Works on iOS Safari + Android Chrome.
+          </li>
+        </ol>
+      </section>
+
+      <footer className="mt-10 border-t border-white/10 pt-4 text-xs text-slate-400">
+        <p>
+          AR features require HTTPS. On Android use Chrome; on iOS use Safari.
+          GLB models with animations are supported on both platforms.
+        </p>
+      </footer>
+    </main>
   );
 }
