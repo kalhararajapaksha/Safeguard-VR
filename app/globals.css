@@ -24,3 +24,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* MindAR camera feed: keep host transparent so video (z-index 0) is visible */
+.mindar-host {
+  background: transparent !important;
+  overflow: hidden;
+}
+
+.mindar-host video {
+  object-fit: cover;
+}

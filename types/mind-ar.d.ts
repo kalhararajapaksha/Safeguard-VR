@@ -14,9 +14,12 @@ declare module "mind-ar/dist/mindar-image-three.prod.js" {
       warmupTolerance?: number;
     });
     renderer: {
+      domElement: HTMLCanvasElement;
       setAnimationLoop: (cb: (() => void) | null) => void;
       render: (scene: unknown, camera: unknown) => void;
       dispose: () => void;
+      setClearColor: (color: number, alpha?: number) => void;
+      setClearAlpha: (alpha: number) => void;
     };
     scene: { add: (obj: unknown) => void };
     camera: unknown;
@@ -27,5 +30,8 @@ declare module "mind-ar/dist/mindar-image-three.prod.js" {
     };
     start(): Promise<void>;
     stop(): Promise<void>;
+    resize(): void;
+    video: HTMLVideoElement;
+    cssRenderer: { domElement: HTMLElement };
   }
 }

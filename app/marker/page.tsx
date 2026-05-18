@@ -4,7 +4,7 @@ import MindARSceneClient from "@/components/MindARSceneClient";
 
 export default function MarkerARPage() {
   return (
-    <main className="relative h-[100dvh] w-full bg-black text-white">
+    <main className="relative h-[100dvh] w-full text-white">
       <MindARSceneClient model={MODEL} />
 
       <Link

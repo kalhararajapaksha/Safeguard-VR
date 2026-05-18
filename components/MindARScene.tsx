@@ -48,6 +48,15 @@ export default function MindARScene({ model }: Props) {
         });
 
         const { renderer, scene, camera } = mindarThree;
+
+        // WebGL canvas must be transparent so the camera <video> shows through.
+        renderer.setClearColor(0x000000, 0);
+        renderer.setClearAlpha(0);
+
+        // CSS3D overlay is unused (no CSS anchors); keep it from blocking the feed.
+        mindarThree.cssRenderer.domElement.style.pointerEvents = "none";
+        mindarThree.cssRenderer.domElement.style.background = "transparent";
+
         const anchor = mindarThree.addAnchor(0);
 
         const ambient = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
@@ -86,6 +95,27 @@ export default function MindARScene({ model }: Props) {
           await mindarThree.stop();
           return;
         }
+
+        // MindAR sets video z-index to -2, which hides it behind our black page
+        // background. Lift video above the container paint but below the canvas.
+        const video = mindarThree.video;
+        if (video) {
+          video.style.zIndex = "0";
+          video.style.objectFit = "cover";
+          video.muted = true;
+          video.playsInline = true;
+          try {
+            await video.play();
+          } catch {
+            /* iOS may require a user gesture; start() usually suffices */
+          }
+        }
+        renderer.domElement.style.zIndex = "1";
+        renderer.domElement.style.background = "transparent";
+
+        mindarThree.resize();
+        requestAnimationFrame(() => mindarThree.resize());
+
         setStatus("ready");
 
         const clock = new THREE.Clock();
@@ -124,10 +154,11 @@ export default function MindARScene({ model }: Props) {
   }, [model]);
 
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden bg-black">
+    <div className="relative h-[100dvh] w-full overflow-hidden">
       <div
         ref={containerRef}
-        className="absolute inset-0 [&>div]:absolute [&>div]:inset-0"
+        className="mindar-host absolute inset-0"
+        style={{ width: "100%", height: "100%", position: "relative" }}
       />
 
       <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 p-4 text-white">
