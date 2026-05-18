@@ -8,10 +8,10 @@ declare module "mind-ar/dist/mindar-image-three.prod.js" {
       uiLoading?: "yes" | "no";
       uiScanning?: "yes" | "no";
       uiError?: "yes" | "no";
-      filterMinCF?: number;
-      filterBeta?: number;
-      missTolerance?: number;
-      warmupTolerance?: number;
+      filterMinCF?: number | null;
+      filterBeta?: number | null;
+      missTolerance?: number | null;
+      warmupTolerance?: number | null;
     });
     renderer: {
       domElement: HTMLCanvasElement;

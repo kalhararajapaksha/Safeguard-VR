@@ -7,13 +7,47 @@ type Props = {
   model: ModelConfig;
 };
 
+function applyCameraLayering(mindarThree: {
+  video: HTMLVideoElement;
+  renderer: { domElement: HTMLCanvasElement };
+  cssRenderer: { domElement: HTMLElement };
+  resize: () => void;
+}) {
+  const { video, renderer, cssRenderer } = mindarThree;
+
+  video.style.zIndex = "0";
+  video.style.position = "absolute";
+  video.style.top = "0";
+  video.style.left = "0";
+  video.muted = true;
+  video.playsInline = true;
+  video.setAttribute("playsinline", "");
+  video.setAttribute("webkit-playsinline", "");
+
+  renderer.domElement.style.zIndex = "1";
+  renderer.domElement.style.position = "absolute";
+  renderer.domElement.style.top = "0";
+  renderer.domElement.style.left = "0";
+  renderer.domElement.style.background = "transparent";
+  renderer.domElement.style.pointerEvents = "none";
+
+  cssRenderer.domElement.style.display = "none";
+
+  mindarThree.resize();
+}
+
+async function ensureVideoPlaying(video: HTMLVideoElement) {
+  if (video.paused) {
+    try {
+      await video.play();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 /**
- * Marker-mode AR using MindAR image tracking. Runs entirely in-browser
- * via WebGL and works on iOS Safari and Android Chrome.
- *
- * The component is `"use client"` and must be loaded with
- * `dynamic(..., { ssr: false })` because MindAR touches `window`,
- * `navigator.mediaDevices`, and `WebGLRenderingContext` at import time.
+ * Marker-mode AR using MindAR image tracking.
  */
 export default function MindARScene({ model }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -23,9 +57,16 @@ export default function MindARScene({ model }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
+
     let disposed = false;
     let cleanup: (() => Promise<void>) | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let videoInterval: ReturnType<typeof setInterval> | null = null;
+    let onOrientation: (() => void) | null = null;
+    let onVisibility: (() => void) | null = null;
+    let onViewport: (() => void) | null = null;
 
     (async () => {
       try {
@@ -45,22 +86,22 @@ export default function MindARScene({ model }: Props) {
           uiLoading: "no",
           uiScanning: "no",
           uiError: "no",
+          maxTrack: 1,
+          // Snappier tracking (matches MindAR official three.js example)
+          filterMinCF: 1,
+          filterBeta: 10000,
+          warmupTolerance: 5,
+          missTolerance: 5,
         });
 
         const { renderer, scene, camera } = mindarThree;
 
-        // WebGL canvas must be transparent so the camera <video> shows through.
         renderer.setClearColor(0x000000, 0);
         renderer.setClearAlpha(0);
 
-        // CSS3D overlay is unused (no CSS anchors); keep it from blocking the feed.
-        mindarThree.cssRenderer.domElement.style.pointerEvents = "none";
-        mindarThree.cssRenderer.domElement.style.background = "transparent";
-
         const anchor = mindarThree.addAnchor(0);
 
-        const ambient = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
-        scene.add(ambient);
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.2));
         const dir = new THREE.DirectionalLight(0xffffff, 1.0);
         dir.position.set(1, 2, 1);
         scene.add(dir);
@@ -72,21 +113,18 @@ export default function MindARScene({ model }: Props) {
           if (!disposed) setStatus("lost");
         };
 
-        const loader = new GLTFLoader();
-        const gltf = await loader.loadAsync(model.glbUrl);
-
+        const gltf = await new GLTFLoader().loadAsync(model.glbUrl);
         const root = gltf.scene;
         const scale = model.markerScale;
         root.scale.set(scale, scale, scale);
         root.position.set(0, model.markerYOffset, 0);
-        root.rotation.set(Math.PI / 2, 0, 0);
+        root.rotation.set(0, 0, 0);
         anchor.group.add(root);
 
         let mixer: InstanceType<typeof THREE.AnimationMixer> | null = null;
-        if (gltf.animations && gltf.animations.length > 0) {
+        if (gltf.animations.length > 0) {
           mixer = new THREE.AnimationMixer(root);
-          const action = mixer.clipAction(gltf.animations[0]);
-          action.play();
+          mixer.clipAction(gltf.animations[0]).play();
         }
 
         await mindarThree.start();
@@ -96,25 +134,46 @@ export default function MindARScene({ model }: Props) {
           return;
         }
 
-        // MindAR sets video z-index to -2, which hides it behind our black page
-        // background. Lift video above the container paint but below the canvas.
-        const video = mindarThree.video;
-        if (video) {
-          video.style.zIndex = "0";
-          video.style.objectFit = "cover";
-          video.muted = true;
-          video.playsInline = true;
-          try {
-            await video.play();
-          } catch {
-            /* iOS may require a user gesture; start() usually suffices */
-          }
-        }
-        renderer.domElement.style.zIndex = "1";
-        renderer.domElement.style.background = "transparent";
+        applyCameraLayering(mindarThree);
+        await ensureVideoPlaying(mindarThree.video);
 
-        mindarThree.resize();
-        requestAnimationFrame(() => mindarThree.resize());
+        requestAnimationFrame(() => {
+          applyCameraLayering(mindarThree);
+          void ensureVideoPlaying(mindarThree.video);
+        });
+
+        const scheduleResize = () => {
+          if (disposed) return;
+          mindarThree.resize();
+          void ensureVideoPlaying(mindarThree.video);
+        };
+
+        resizeObserver = new ResizeObserver(() => scheduleResize());
+        resizeObserver.observe(containerRef.current!);
+
+        onOrientation = () => {
+          setTimeout(scheduleResize, 100);
+          setTimeout(scheduleResize, 400);
+        };
+        window.addEventListener("orientationchange", onOrientation);
+
+        if (window.visualViewport) {
+          onViewport = () => scheduleResize();
+          window.visualViewport.addEventListener("resize", onViewport);
+          window.visualViewport.addEventListener("scroll", onViewport);
+        }
+
+        onVisibility = () => {
+          if (document.visibilityState === "visible") {
+            scheduleResize();
+            void ensureVideoPlaying(mindarThree.video);
+          }
+        };
+        document.addEventListener("visibilitychange", onVisibility);
+
+        videoInterval = setInterval(() => {
+          void ensureVideoPlaying(mindarThree.video);
+        }, 2000);
 
         setStatus("ready");
 
@@ -127,6 +186,18 @@ export default function MindARScene({ model }: Props) {
 
         cleanup = async () => {
           renderer.setAnimationLoop(null);
+          if (videoInterval) clearInterval(videoInterval);
+          if (resizeObserver) resizeObserver.disconnect();
+          if (onOrientation) {
+            window.removeEventListener("orientationchange", onOrientation);
+          }
+          if (onViewport && window.visualViewport) {
+            window.visualViewport.removeEventListener("resize", onViewport);
+            window.visualViewport.removeEventListener("scroll", onViewport);
+          }
+          if (onVisibility) {
+            document.removeEventListener("visibilitychange", onVisibility);
+          }
           try {
             await mindarThree.stop();
           } catch {
@@ -149,22 +220,20 @@ export default function MindARScene({ model }: Props) {
 
     return () => {
       disposed = true;
-      if (cleanup) cleanup();
+      if (cleanup) void cleanup();
     };
   }, [model]);
 
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden">
-      <div
-        ref={containerRef}
-        className="mindar-host absolute inset-0"
-        style={{ width: "100%", height: "100%", position: "relative" }}
-      />
+    <div className="fixed inset-0 touch-none overflow-hidden">
+      <div ref={containerRef} className="mindar-host" />
 
-      <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 p-4 text-white">
-        <h1 className="text-lg font-semibold drop-shadow">{model.name}</h1>
-        <p className="text-xs opacity-80 drop-shadow">{model.description}</p>
-      </div>
+      {status !== "tracking" && (
+        <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 p-4 pt-14 text-white">
+          <h1 className="text-lg font-semibold drop-shadow">{model.name}</h1>
+          <p className="text-xs opacity-80 drop-shadow">{model.description}</p>
+        </div>
+      )}
 
       <StatusOverlay status={status} message={errorMsg} model={model} />
     </div>
@@ -186,10 +255,6 @@ function StatusOverlay({
         <div className="max-w-sm space-y-2">
           <p className="text-base font-semibold">AR failed to start</p>
           <p className="text-sm opacity-80">{message ?? "Unknown error"}</p>
-          <p className="text-xs opacity-60">
-            Make sure you opened this page over HTTPS and granted camera
-            permission.
-          </p>
         </div>
       </div>
     );
@@ -198,21 +263,37 @@ function StatusOverlay({
   if (status === "loading" || status === "idle") {
     return (
       <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 text-white">
-        <div className="text-sm">Loading AR engine...</div>
+        <p className="text-sm">Starting camera...</p>
+      </div>
+    );
+  }
+
+  if (status === "tracking") {
+    return (
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
+        <p className="mx-auto max-w-sm rounded-lg bg-emerald-600/80 px-3 py-2 text-center text-sm font-medium text-white backdrop-blur">
+          Target found — move slowly to keep tracking
+        </p>
       </div>
     );
   }
 
   if (status === "ready" || status === "lost") {
     return (
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
-        <div className="mx-auto max-w-sm rounded-lg bg-black/60 p-3 text-center text-white backdrop-blur">
-          <p className="text-sm font-medium">Point your camera at the target</p>
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4 pb-6">
+        <div className="mx-auto max-w-sm rounded-lg bg-black/70 p-3 text-center text-white backdrop-blur">
+          <p className="text-sm font-medium">
+            Point at the <strong>printed</strong> target image
+          </p>
+          <p className="mt-1 text-xs text-slate-300">
+            Open <strong>/qr?mode=marker</strong> on a computer, print the
+            page, then aim your camera at that card (not your monitor).
+          </p>
           {model.targetImage && (
             <img
               src={model.targetImage}
-              alt="Target"
-              className="mx-auto mt-2 h-24 w-auto rounded border border-white/30"
+              alt="Print this target"
+              className="mx-auto mt-3 max-h-28 w-auto rounded border-2 border-white/40"
             />
           )}
         </div>

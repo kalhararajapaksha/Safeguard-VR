@@ -4,12 +4,12 @@ import MindARSceneClient from "@/components/MindARSceneClient";
 
 export default function MarkerARPage() {
   return (
-    <main className="relative h-[100dvh] w-full text-white">
+    <main className="fixed inset-0 text-white">
       <MindARSceneClient model={MODEL} />
 
       <Link
         href="/"
-        className="absolute left-3 top-3 z-30 rounded-full bg-black/60 px-3 py-1.5 text-xs text-white backdrop-blur"
+        className="absolute left-3 top-3 z-50 rounded-full bg-black/60 px-3 py-1.5 text-xs text-white backdrop-blur"
       >
         &larr; Back
       </Link>
