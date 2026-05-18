@@ -1,13 +1,11 @@
 /**
  * Single-model configuration.
  *
- * Replace the fields below to swap in your own GLB and MindAR target.
- *
  *  - `glbUrl`        animated GLB used by both launcher and marker modes.
- *  - `mindTarget`    .mind file produced by MindAR's image compiler (required for marker mode).
- *  - `targetImage`   PNG/JPG used to compile the .mind file; also shown as a hint and used to generate the printable QR overlay.
- *  - `markerScale`   scale applied inside the marker scene (the target image plane is 1 unit wide).
- *  - `markerYOffset` lift the model off the marker so it doesn't z-fight with the printed page.
+ *  - `mindTarget`    .mind file from MindAR's image compiler (marker mode).
+ *  - `targetImage`   JPG/PNG used to compile the .mind file; print this for tracking.
+ *  - `markerScale`   scale in MindAR space (target plane width = 1 unit).
+ *  - `markerYOffset` lift off the printed image to avoid z-fighting.
  */
 export type ModelConfig = {
   name: string;
@@ -21,12 +19,12 @@ export type ModelConfig = {
 };
 
 export const MODEL: ModelConfig = {
-  name: "Cesium Man",
-  description: "Animated humanoid walk cycle (Khronos sample).",
-  glbUrl: "/models/robot.glb",
-  mindTarget: "/targets/card.mind",
-  targetImage: "/targets/card.png",
-  markerScale: 0.5,
-  markerYOffset: 0,
+  name: "Vesak Lantern",
+  description: "Festive Vesak Day lantern — point your camera at the printed target.",
+  glbUrl: "/models/vesak_lantern.glb",
+  mindTarget: "/targets/targets.mind",
+  targetImage: "/targets/target.jpg",
+  markerScale: 0.35,
+  markerYOffset: 0.05,
   hasAnimation: true,
 };
