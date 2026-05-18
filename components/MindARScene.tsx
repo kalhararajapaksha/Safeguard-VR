@@ -7,33 +7,77 @@ type Props = {
   model: ModelConfig;
 };
 
-function applyCameraLayering(mindarThree: {
-  video: HTMLVideoElement;
-  renderer: { domElement: HTMLCanvasElement };
-  cssRenderer: { domElement: HTMLElement };
-  resize: () => void;
-}) {
+/** Size the MindAR host to the visible viewport (handles mobile URL bar). */
+function syncContainerToViewport(container: HTMLElement) {
+  const vv = window.visualViewport;
+  const w = Math.round(vv?.width ?? window.innerWidth);
+  const h = Math.round(vv?.height ?? window.innerHeight);
+  container.style.width = `${w}px`;
+  container.style.height = `${h}px`;
+}
+
+/** Cover-fit the camera video so it fills the entire screen. */
+function fitVideoCover(video: HTMLVideoElement, container: HTMLElement) {
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!cw || !ch || !vw || !vh) return;
+
+  const scale = Math.max(cw / vw, ch / vh);
+  const w = vw * scale;
+  const h = vh * scale;
+
+  video.style.position = "absolute";
+  video.style.width = `${w}px`;
+  video.style.height = `${h}px`;
+  video.style.left = `${(cw - w) / 2}px`;
+  video.style.top = `${(ch - h) / 2}px`;
+  video.style.maxWidth = "none";
+  video.style.maxHeight = "none";
+}
+
+/** Stretch the WebGL overlay to the full viewport. */
+function fitCanvasFullscreen(
+  canvas: HTMLCanvasElement,
+  container: HTMLElement,
+) {
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  canvas.style.position = "absolute";
+  canvas.style.left = "0";
+  canvas.style.top = "0";
+  canvas.style.width = `${cw}px`;
+  canvas.style.height = `${ch}px`;
+}
+
+function layoutCamera(
+  mindarThree: {
+    video: HTMLVideoElement;
+    renderer: { domElement: HTMLCanvasElement };
+    cssRenderer: { domElement: HTMLElement };
+    resize: () => void;
+  },
+  container: HTMLElement,
+) {
   const { video, renderer, cssRenderer } = mindarThree;
 
+  syncContainerToViewport(container);
+  mindarThree.resize();
+
   video.style.zIndex = "0";
-  video.style.position = "absolute";
-  video.style.top = "0";
-  video.style.left = "0";
   video.muted = true;
   video.playsInline = true;
   video.setAttribute("playsinline", "");
   video.setAttribute("webkit-playsinline", "");
+  fitVideoCover(video, container);
 
   renderer.domElement.style.zIndex = "1";
-  renderer.domElement.style.position = "absolute";
-  renderer.domElement.style.top = "0";
-  renderer.domElement.style.left = "0";
   renderer.domElement.style.background = "transparent";
   renderer.domElement.style.pointerEvents = "none";
+  fitCanvasFullscreen(renderer.domElement, container);
 
   cssRenderer.domElement.style.display = "none";
-
-  mindarThree.resize();
 }
 
 async function ensureVideoPlaying(video: HTMLVideoElement) {
@@ -134,17 +178,18 @@ export default function MindARScene({ model }: Props) {
           return;
         }
 
-        applyCameraLayering(mindarThree);
+        layoutCamera(mindarThree, containerRef.current);
         await ensureVideoPlaying(mindarThree.video);
 
         requestAnimationFrame(() => {
-          applyCameraLayering(mindarThree);
+          if (disposed || !containerRef.current) return;
+          layoutCamera(mindarThree, containerRef.current);
           void ensureVideoPlaying(mindarThree.video);
         });
 
         const scheduleResize = () => {
-          if (disposed) return;
-          mindarThree.resize();
+          if (disposed || !containerRef.current) return;
+          layoutCamera(mindarThree, containerRef.current);
           void ensureVideoPlaying(mindarThree.video);
         };
 
@@ -225,15 +270,8 @@ export default function MindARScene({ model }: Props) {
   }, [model]);
 
   return (
-    <div className="fixed inset-0 touch-none overflow-hidden">
+    <div className="ar-fullscreen touch-none">
       <div ref={containerRef} className="mindar-host" />
-
-      {status !== "tracking" && (
-        <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 p-4 pt-14 text-white">
-          <h1 className="text-lg font-semibold drop-shadow">{model.name}</h1>
-          <p className="text-xs opacity-80 drop-shadow">{model.description}</p>
-        </div>
-      )}
 
       <StatusOverlay status={status} message={errorMsg} model={model} />
     </div>
@@ -270,7 +308,10 @@ function StatusOverlay({
 
   if (status === "tracking") {
     return (
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
+      <div
+        className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 px-3"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      >
         <p className="mx-auto max-w-sm rounded-lg bg-emerald-600/80 px-3 py-2 text-center text-sm font-medium text-white backdrop-blur">
           Target found — move slowly to keep tracking
         </p>
@@ -280,7 +321,10 @@ function StatusOverlay({
 
   if (status === "ready" || status === "lost") {
     return (
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4 pb-6">
+      <div
+        className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 px-3"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      >
         <div className="mx-auto max-w-sm rounded-lg bg-black/70 p-3 text-center text-white backdrop-blur">
           <p className="text-sm font-medium">
             Point at the <strong>printed</strong> target image

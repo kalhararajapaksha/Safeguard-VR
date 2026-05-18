@@ -25,7 +25,19 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* MindAR: full-viewport host; MindAR sets video/canvas size in resize() */
+/* Marker AR: true full-screen camera (edge-to-edge on mobile) */
+.ar-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100vw;
+  height: 100dvh;
+  height: 100svh;
+  min-height: -webkit-fill-available;
+  overflow: hidden;
+  background: #000;
+}
+
 .mindar-host {
   position: absolute;
   inset: 0;
@@ -33,5 +45,16 @@ body {
   height: 100%;
   overflow: hidden;
   background: transparent !important;
+}
+
+/* Marker route: no page scroll behind the camera */
+.marker-ar {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  height: 100svh;
+  overflow: hidden;
+  background: #000;
 }
 
