@@ -14,7 +14,7 @@ The native phone camera scans the printed QR and opens the URL. There is no in-a
 ## Quick start
 
 ```bash
-npm install --ignore-scripts
+npm install
 npm run dev
 ```
 
@@ -26,7 +26,7 @@ npm run dev:https
 
 The first run generates a self-signed cert. Note the LAN URL printed in the terminal (e.g. `https://192.168.1.5:3000`) and accept the cert warning on your phone.
 
-> **Why `--ignore-scripts`?** `mind-ar` transitively depends on the native `canvas` module, which requires Visual Studio C++ build tools on Windows. We only use MindAR's *browser* bundle at runtime, so the native build is not needed.
+> **Why `ignore-scripts`?** The repo includes [`.npmrc`](.npmrc) with `ignore-scripts=true` because `mind-ar` transitively depends on native `canvas` (offline compiler only). Vercel and local installs skip that build; the browser AR bundle does not need it.
 
 ## Production build
 
@@ -35,7 +35,7 @@ npm run build
 npm start
 ```
 
-Deploy to **Vercel** (recommended) for automatic HTTPS, CDN-served GLBs, and zero config.
+Deploy to **Vercel** (recommended) for automatic HTTPS, CDN-served GLBs, and zero config. No extra install flags are required — `.npmrc` is picked up automatically.
 
 ## Project layout
 
